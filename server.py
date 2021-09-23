@@ -1,5 +1,6 @@
 #  coding: utf-8 
 import socketserver
+from urllib import request
 
 # Copyright 2013 Abram Hindle, Eddie Antonio Santos
 # 
@@ -31,10 +32,84 @@ class MyWebServer(socketserver.BaseRequestHandler):
     
     def handle(self):
         self.data = self.request.recv(1024).strip()
-        print ("Got a request of: %s\n" % self.data)
-        self.request.sendall(bytearray("OK",'utf-8'))
+        #print ("Got a request of: %s\n" % self.data)
+        header = self.data.decode().split('\n')
+        URL = (header[0].split()[1])
+        request_type = header[0].split()[0]
+        print(request_type + URL)
+
+        if(URL == '/' or URL == '/index.html' or URL == '/index.html/'):
+            self.request.sendall(bytes("HTTP/1.1 200 OK Herro Dear Client\n", "utf-8"))
+            self.request.sendall(bytes('Content-Type: text/html\n\n', "utf-8"))
+            self.request.sendall(open('www/index.html').read().encode())
+
+        elif(URL == '/favicon.ico'):
+            # self.request.sendall(open('www/favicon.ico').read().encode())
+            return
+        
+        elif(request_type != 'GET'):
+            self.request.sendall(bytes("HTTP/1.1 405 Method Not Allowed wai u do dis\n\n", "utf-8"))
+
+        else:
+            if(URL.endswith('.css') or URL.endswith('.html')):
+                try:
+                    data = open('www' + URL).read()
+                    if(URL.endswith('.css')):
+                        mime = 'Content-Type: text/css\n\n'
+                        self.request.sendall(bytes("HTTP/1.1 200 OK\n", "utf-8"))
+                        self.request.sendall(bytes(mime + data, "utf-8"))
+                    elif(URL.endswith('.html')):
+                        mime = 'Content-Type: text/html\n\n'
+                        self.request.sendall(bytes("HTTP/1.1 200 OK\n", "utf-8"))
+                        self.request.sendall(bytes(mime + data, "utf-8"))
+                    else:
+                        self.request.sendall(bytes('HTTP/1.1 404 FILE NOT FOUND\n', "utf-8"))    
+                except FileNotFoundError:
+                    print('Cannot find File: ' + URL)
+                    self.request.sendall(bytes('HTTP/1.1 404 FILE NOT FOUND\n', "utf-8"))
+                except IsADirectoryError:
+                    print('Cannot find File: ' + URL)
+                    self.request.sendall(bytes('HTTP/1.1 404 FILE NOT FOUND\n', "utf-8"))
+                except NotADirectoryError:
+                    print('Cannot find Directory: ' + URL)
+                    self.request.sendall(bytes('HTTP/1.1 404 FILE NOT FOUND\n', "utf-8"))
+            elif(URL.endswith('/')):
+                try:
+                    data = open('www' + URL + 'index.html').read()
+                    mime = 'Content-Type: text/html\n\n'
+                    self.request.sendall(bytes("HTTP/1.1 200 OK\n", "utf-8"))
+                    self.request.sendall(bytes(mime + data, "utf-8"))
+                except FileNotFoundError:
+                    print('Cannot find File: ' + URL)
+                    self.request.sendall(bytes('HTTP/1.1 404 FILE NOT FOUND\n', "utf-8"))
+                except IsADirectoryError:
+                    print('Cannot find File: ' + URL)
+                    self.request.sendall(bytes('HTTP/1.1 404 FILE NOT FOUND\n', "utf-8"))
+                except NotADirectoryError:
+                    print('Cannot find Directory: ' + URL)
+                    self.request.sendall(bytes('HTTP/1.1 404 FILE NOT FOUND\n', "utf-8"))
+            else:
+                try:
+                    data = open('www' + URL + '/index.html').read()
+                    self.request.sendall(bytes("HTTP/1.1 301 MOVED\n", "utf-8"))
+                    mime = 'Content-Type: text/html\n\n'
+                    self.request.sendall(bytes("HTTP/1.1 200 OK\n", "utf-8"))
+                    self.request.sendall(bytes(mime + data, "utf-8"))
+                except FileNotFoundError:
+                    print('Cannot find File: ' + URL)
+                    self.request.sendall(bytes('HTTP/1.1 404 FILE NOT FOUND\n', "utf-8"))
+                except IsADirectoryError:
+                    print('Cannot find File: ' + URL)
+                    self.request.sendall(bytes('HTTP/1.1 404 FILE NOT FOUND\n', "utf-8"))
+                except NotADirectoryError:
+                    print('Cannot find Directory: ' + URL)
+                    self.request.sendall(bytes('HTTP/1.1 404 FILE NOT FOUND\n', "utf-8"))
+
+            
+
 
 if __name__ == "__main__":
+    print('hello world')
     HOST, PORT = "localhost", 8080
 
     socketserver.TCPServer.allow_reuse_address = True
