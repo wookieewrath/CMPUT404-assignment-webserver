@@ -1,6 +1,11 @@
 #  coding: utf-8 
-import socketserver
+import socketserver, os
 from urllib import request
+from wsgiref.handlers import format_date_time
+from datetime import datetime
+from time import mktime
+
+
 
 # Copyright 2013 Abram Hindle, Eddie Antonio Santos
 # 
@@ -36,77 +41,60 @@ class MyWebServer(socketserver.BaseRequestHandler):
         header = self.data.decode().split('\n')
         URL = (header[0].split()[1])
         request_type = header[0].split()[0]
-        print(request_type + URL)
+        #print(request_type + URL)
+        now = datetime.now()
+        stamp = mktime(now.timetuple())
+
+        http_200 = 'HTTP/1.1 200 OK\r\n'
+        http_404 = 'HTTP/1.1 404 FILE NOT FOUND\r\n'
+        http_301 = 'HTTP/1.1 301 MOVED\r\n'
+        http_405 = 'HTTP/1.1 405 METHOD NOT ALLOWED\r\n'
+        css_mime = 'Content-Type: text/css\n\n'
+        html_mime = 'Content-Type: text/html\n\n'
+        date_header = 'Date: ' + format_date_time(stamp) + '\r\n'
+        close_header = 'Connection: close\r\n'
 
         if(URL == '/' or URL == '/index.html' or URL == '/index.html/'):
-            self.request.sendall(bytes("HTTP/1.1 200 OK Herro Dear Client\n", "utf-8"))
-            self.request.sendall(bytes('Content-Type: text/html\n\n', "utf-8"))
-            self.request.sendall(open('www/index.html').read().encode())
+            data = open('www/index.html').read()
+            size_header = 'Content-Length: ' + str(os.path.getsize('www/index.html')) + '\r\n'
+            self.request.sendall(bytes(http_200 + date_header + size_header + close_header + html_mime  + '\r\n' + data, "utf-8"))
 
         elif(URL == '/favicon.ico'):
+            # I wanted favicons and I failed :( Cannot figure out how to encode
             # self.request.sendall(open('www/favicon.ico').read().encode())
             return
         
         elif(request_type != 'GET'):
-            self.request.sendall(bytes("HTTP/1.1 405 Method Not Allowed wai u do dis\n\n", "utf-8"))
+            self.request.sendall(bytes(http_405 + '\r\n', "utf-8"))
 
         else:
-            if(URL.endswith('.css') or URL.endswith('.html')):
-                try:
+            try:
+                if(URL.endswith('.css') or URL.endswith('.html')):
                     data = open('www' + URL).read()
+                    size_header = 'Content-Length: ' + str(os.path.getsize('www' + URL)) + '\r\n'
                     if(URL.endswith('.css')):
-                        mime = 'Content-Type: text/css\n\n'
-                        self.request.sendall(bytes("HTTP/1.1 200 OK\n", "utf-8"))
-                        self.request.sendall(bytes(mime + data, "utf-8"))
+                        self.request.sendall(bytes(http_200 + date_header + size_header + close_header + css_mime + '\r\n' + data, "utf-8"))
                     elif(URL.endswith('.html')):
-                        mime = 'Content-Type: text/html\n\n'
-                        self.request.sendall(bytes("HTTP/1.1 200 OK\n", "utf-8"))
-                        self.request.sendall(bytes(mime + data, "utf-8"))
+                        self.request.sendall(bytes(http_200 + date_header + size_header + close_header + html_mime + '\r\n' + data, "utf-8"))
                     else:
-                        self.request.sendall(bytes('HTTP/1.1 404 FILE NOT FOUND\n', "utf-8"))    
-                except FileNotFoundError:
-                    print('Cannot find File: ' + URL)
-                    self.request.sendall(bytes('HTTP/1.1 404 FILE NOT FOUND\n', "utf-8"))
-                except IsADirectoryError:
-                    print('Cannot find File: ' + URL)
-                    self.request.sendall(bytes('HTTP/1.1 404 FILE NOT FOUND\n', "utf-8"))
-                except NotADirectoryError:
-                    print('Cannot find Directory: ' + URL)
-                    self.request.sendall(bytes('HTTP/1.1 404 FILE NOT FOUND\n', "utf-8"))
-            elif(URL.endswith('/')):
-                try:
+                        self.request.sendall(bytes(http_404, "utf-8"))    
+                elif(URL.endswith('/')):
                     data = open('www' + URL + 'index.html').read()
-                    mime = 'Content-Type: text/html\n\n'
-                    self.request.sendall(bytes("HTTP/1.1 200 OK\n", "utf-8"))
-                    self.request.sendall(bytes(mime + data, "utf-8"))
-                except FileNotFoundError:
-                    print('Cannot find File: ' + URL)
-                    self.request.sendall(bytes('HTTP/1.1 404 FILE NOT FOUND\n', "utf-8"))
-                except IsADirectoryError:
-                    print('Cannot find File: ' + URL)
-                    self.request.sendall(bytes('HTTP/1.1 404 FILE NOT FOUND\n', "utf-8"))
-                except NotADirectoryError:
-                    print('Cannot find Directory: ' + URL)
-                    self.request.sendall(bytes('HTTP/1.1 404 FILE NOT FOUND\n', "utf-8"))
-            else:
-                try:
+                    size_header = 'Content-Length: ' + str(os.path.getsize('www' + URL)) + '\r\n'
+                    self.request.sendall(bytes(http_200 + date_header + size_header + close_header + html_mime + '\r\n' + data, "utf-8"))
+                else:
                     data = open('www' + URL + '/index.html').read()
-                    self.request.sendall(bytes("HTTP/1.1 301 MOVED\n", "utf-8"))
-                    mime = 'Content-Type: text/html\n\n'
-                    self.request.sendall(bytes("HTTP/1.1 200 OK\n", "utf-8"))
-                    self.request.sendall(bytes(mime + data, "utf-8"))
-                except FileNotFoundError:
-                    print('Cannot find File: ' + URL)
-                    self.request.sendall(bytes('HTTP/1.1 404 FILE NOT FOUND\n', "utf-8"))
-                except IsADirectoryError:
-                    print('Cannot find File: ' + URL)
-                    self.request.sendall(bytes('HTTP/1.1 404 FILE NOT FOUND\n', "utf-8"))
-                except NotADirectoryError:
-                    print('Cannot find Directory: ' + URL)
-                    self.request.sendall(bytes('HTTP/1.1 404 FILE NOT FOUND\n', "utf-8"))
-
-            
-
+                    size_header = 'Content-Length: ' + str(os.path.getsize('www' + URL)) + '\r\n'
+                    self.request.sendall(bytes(http_301 + http_200 + date_header + size_header + close_header + html_mime + '\r\n' + data, "utf-8"))
+            except FileNotFoundError:
+                print('Not Found: ' + URL)
+                self.request.sendall(bytes(http_404, "utf-8"))
+            except IsADirectoryError:
+                print('Not Found: ' + URL)
+                self.request.sendall(bytes(http_404, "utf-8"))
+            except NotADirectoryError:
+                print('Not Found: ' + URL)
+                self.request.sendall(bytes(http_404, "utf-8"))
 
 if __name__ == "__main__":
     print('hello world')
@@ -119,3 +107,7 @@ if __name__ == "__main__":
     # Activate the server; this will keep running until you
     # interrupt the program with Ctrl-C
     server.serve_forever()
+
+# Sources Consulted:
+# For formatting Date/Time:
+# https://stackoverflow.com/questions/225086/rfc-1123-date-representation-in-python
